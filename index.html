@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generador de Folio</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.45; }
+    label { display: block; margin-top: 12px; }
+    input { padding: 8px; margin-top: 6px; width: 280px; }
+    button { margin-top: 20px; padding: 10px 18px; font-size: 16px; cursor: pointer; }
+    #folio { margin-top: 20px; font-weight: bold; color: #0a7c3b; }
+  </style>
+</head>
+<body>
+  <h1>Generador de Folio</h1>
+
+  <form id="formulario" onsubmit="event.preventDefault(); generarFolio();">
+    <label>Nombre del Doctor:
+      <input type="text" id="doctor" placeholder="Ej. Arturo Colín" required>
+    </label>
+    <label>Fecha:
+      <input type="date" id="fecha" required>
+    </label>
+    <label>Nombre del Paciente:
+      <input type="text" id="paciente" placeholder="Ej. Juan Pérez" required>
+    </label>
+    <label>Costo:
+      <input type="number" id="costo" placeholder="Ej. 12500" required>
+    </label>
+    <button type="submit">Generar Folio</button>
+  </form>
+
+  <div id="folio"></div>
+
+  <script>
+    // 👉 URL pública de tu Web App (Apps Script)
+    const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwZ2T-X4-oNOazgvxUHHyjE0yYu2hPYEpimuAJwRi8kkKCKzvZ6QZAc86Yl0sywMRk/exec";
+
+    // Colocar por defecto la fecha de hoy en el input
+    (function initToday() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      document.getElementById('fecha').value = `${yyyy}-${mm}-${dd}`;
+    })();
+
+    function iniciales(nombre) {
+      return (nombre || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(p => p.charAt(0).toUpperCase())
+        .join('');
+    }
+
+    async function generarFolio() {
+      const doctor = document.getElementById('doctor').value.trim();
+      const fecha = document.getElementById('fecha').value;
+      const paciente = document.getElementById('paciente').value.trim();
+      const costo = document.getElementById('costo').value;
+
+      if (!doctor || !fecha || !paciente || !costo) {
+        alert('Por favor llena todos los campos.');
+        return;
+      }
+
+      const fechaCompacta = fecha.replace(/-/g, ''); // YYYYMMDD
+      const inicDr = iniciales(doctor);
+      const inicPac = iniciales(paciente);
+      const costoSimple = parseInt(costo, 10).toString();
+
+      const folio = `${fechaCompacta}-${inicDr}-${inicPac}-${costoSimple}`;
+      document.getElementById('folio').textContent = "Folio generado: " + folio;
+
+      const payload = {
+        folio,
+        doctor_nombre: doctor,
+        fecha,
+        paciente_nombre: paciente,
+        costo: Number(costo)
+      };
+
+      try {
+        const res = await fetch(ENDPOINT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.ok) {
+          alert("✅ Folio guardado en Google Sheet");
+        } else {
+          alert("⚠️ Error al guardar: " + (json.error || 'desconocido'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert("❌ No se pudo conectar con la hoja. Revisa la URL del Web App o permisos.");
+      }
+    }
+  </script>
+</body>
+</html>
